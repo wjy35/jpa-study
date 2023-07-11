@@ -1,4 +1,4 @@
-package com.ssafy.jpastudy.db;
+package com.ssafy.jpastudy.db.entity;
 
 import lombok.*;
 
