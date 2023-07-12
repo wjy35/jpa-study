@@ -174,4 +174,24 @@ public class SpringJpaTest {
             entityTransaction.commit();
         });
     }
+
+    @Test
+    void testtest(){
+        int boardId = 1;
+        Board insertedBoard = BoardFactory.createByBoardId(boardId);
+
+        EntityManager entityManager = entityManagerFactory.createEntityManager();
+        EntityTransaction entityTransaction = entityManager.getTransaction();
+
+        // when
+        entityTransaction.begin();
+        entityManager.persist(insertedBoard);
+        entityTransaction.commit();
+
+        entityTransaction.begin();
+        entityManager.remove(insertedBoard);
+        entityManager.detach(insertedBoard);
+        entityTransaction.commit();
+
+    }
 }

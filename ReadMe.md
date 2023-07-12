@@ -217,21 +217,216 @@ public @interface GeneratedValue {
 
 ### Persistence Context?
 
+Jakarta Doc의 EntityManager를 보면
+```text
+...
+A persistence context is a set of entity instances in which for any persistent entity identity there is a unique entity instance. Within the persistence context, the entity instances and their lifecycle are managed.
+...
+```
+즉 Persistence Context 란 
+- Entity Id에 따라 고유한 Entity 집합이며
+- Persistence Context 안에서 Entity의 Life Cycle 을 관리하는 역할
+- Server 와 DB 사이의 캐시 역할
+
+![img2](image/img2.png)
+
 ### Entity Life Cycle
 
+Persistence Context가 관리하는 Entity의 상태
 
+| States     | Description                         |
+|------------|-------------------------------------|
+| Transient  | Persistenc Context 가 인식하지 못함(new)   |
+| Persistent | Persistenc Context에 의해 관리됨 (managed) |
+| Detached   | Persistenc Context에 의해 관리되었지만 현재는 아님 |
+| Removed    | Persistenc Context에 의해 삭제됨          |
+
+![img3](image/img3.png)
 
 ### EntityManager
 
+#### EntityManager?
+Persistence Context를 위한 Interface
 
+```java
+/**
+ * Interface used to interact with the persistence context.
+ *
+ * An EntityManager instance is associated with 
+ * a persistence context. A persistence context is a set of entity 
+ * instances in which for any persistent entity identity there is 
+ * a unique entity instance. Within the persistence context, the 
+ * entity instances and their lifecycle are managed. 
+ * The EntityManager API is used 
+ * to create and remove persistent entity instances, to find entities 
+ * by their primary key, and to query over entities.
+ *
+ * <p> The set of entities that can be managed by a given 
+ * <code>EntityManager</code> instance is defined by a persistence 
+ * unit. A persistence unit defines the set of all classes that are 
+ * related or grouped by the application, and which must be 
+ * colocated in their mapping to a single database.
+ *
+ * @since 1.0
+ */
+public interface EntityManager {
+    /**
+     * 중략
+     */
+}
+```
+#### Methods
+
+persist
+- entity를 managed,persistent 상태로 만듬
+```java
+public interface EntityManager {
+    /**
+     * Make an instance managed and persistent.
+     * @param entity  entity instance
+     * @throws EntityExistsException if the entity already exists.
+     * (If the entity already exists, the <code>EntityExistsException</code> may 
+     * be thrown when the persist operation is invoked, or the
+     * <code>EntityExistsException</code> or another <code>PersistenceException</code> may be 
+     * thrown at flush or commit time.) 
+     * @throws IllegalArgumentException if the instance is not an
+     *         entity
+     * @throws TransactionRequiredException if there is no transaction when
+     *         invoked on a container-managed entity manager of that is of type 
+     *         <code>PersistenceContextType.TRANSACTION</code>
+     */
+    public void persist(Object entity);
+}
+```
+
+remove
+- entity를 removed 상태로 바꿈
+```java
+public interface EntityManager {
+    /**
+     * Remove the entity instance.
+     * @param entity  entity instance
+     * @throws IllegalArgumentException if the instance is not an
+     *         entity or is a detached entity
+     * @throws TransactionRequiredException if invoked on a
+     *         container-managed entity manager of type 
+     *         <code>PersistenceContextType.TRANSACTION</code> and there is 
+     *         no transaction
+     */
+    public void remove(Object entity);
+}
+```
+
+merge
+- 최근 persistence context 에 entity를 merge
+- entity를 persistence 상태로 만듬
+- persistence context에 없을경우 primary key를 이용해 db를 조회해하여 entity 추가
+```java
+public interface EntityManager {
+    /**
+     * Merge the state of the given entity into the
+     * current persistence context.
+     * @param entity  entity instance
+     * @return the managed instance that the state was merged to
+     * @throws IllegalArgumentException if instance is not an
+     *         entity or is a removed entity
+     * @throws TransactionRequiredException if there is no transaction when
+     *         invoked on a container-managed entity manager of that is of type 
+     *         <code>PersistenceContextType.TRANSACTION</code>
+     */
+    public <T> T merge(T entity);
+}
+```
+
+detach: entity를 detached 상태로 만듬
+- detached 상태란 db와의 session이 끊기고 context에 의해 관리되지 않는 상태
+- flush 되지 않은 변화들을 db에 동기화 되지 않도록 설정
+
+```java
+
+public interface EntityManager {
+    /**
+     * Remove the given entity from the persistence context, causing
+     * a managed entity to become detached.  Unflushed changes made 
+     * to the entity if any (including removal of the entity), 
+     * will not be synchronized to the database.  Entities which 
+     * previously referenced the detached entity will continue to
+     * reference it.
+     * @param entity  entity instance
+     * @throws IllegalArgumentException if the instance is not an 
+     *         entity 
+     * @since 2.0
+     */
+    public void detach(Object entity);
+}
+```
+
+flush
+- persistence context 와 database 를 동기화
+```java
+public interface EntityManager {
+    /**
+     * Synchronize the persistence context to the
+     * underlying database.
+     * @throws TransactionRequiredException if there is
+     *         no transaction or if the entity manager has not been
+     *         joined to the current transaction
+     * @throws PersistenceException if the flush fails
+     */
+    public void flush();
+}
+```
+
+clear
+- persistence context 의 내용을 초기화함
+- 모든 entity는 detached 상태가됨
+```java
+public interface EntityManager {
+    /**
+     * Clear the persistence context, causing all managed
+     * entities to become detached. Changes made to entities that
+     * have not been flushed to the database will not be
+     * persisted.
+     */
+    public void clear();
+}
+```
+
+close
+- EntityManager를 종료
+```java
+public interface EntityManager {
+    /**
+     * Close an application-managed entity manager. 
+     * After the close method has been invoked, all methods
+     * on the <code>EntityManager</code> instance and any 
+     * <code>Query</code>, <code>TypedQuery</code>, and
+     * <code>StoredProcedureQuery</code> objects obtained from 
+     * it will throw the <code>IllegalStateException</code>
+     * except for <code>getProperties</code>, 
+     * <code>getTransaction</code>, and <code>isOpen</code> (which will return false).
+     * If this method is called when the entity manager is
+     * joined to an active transaction, the persistence
+     * context remains managed until the transaction completes. 
+     * @throws IllegalStateException if the entity manager
+     *         is container-managed
+     */
+    public void close();
+}
+```
 
 ># Hibernate
 
+Entity를 작성하였다 해서 ORM 이 일어나지는 않음<br>
+Hibernate는 실제로 ORM을 하는 EntityManager 를 생성하는 EntityManagerFactory를 제공
+
 ## persistence.xml
 
-## EntityManagerFactory
-
+persistence.xml에 ORM 을 위한 정보를 작성 <br>
+EntityManagerFactory 를 이용해 EntityManager 객체를 생성
 ___
+
+
 
 
 
