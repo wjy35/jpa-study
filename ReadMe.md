@@ -426,10 +426,314 @@ persistence.xml에 ORM 을 위한 정보를 작성 <br>
 EntityManagerFactory 를 이용해 EntityManager 객체를 생성
 ___
 
+># Relation Mapping
+
+
+## Bidirectional Relationship Vs UniDirectional Relationship
 
 
 
+## Association Mapping
 
+### DataBase 
+
+FK가 다른 Table의 PK를 참조하여 관계의 주인이 됨
+![img4](image/img4.png)
+하지만 다음의 Query를 통해 서로를 조회할 수 있음
+
+```mysql
+
+select * from employee e join dept d on e.employee_id = d.dept_id;  
+select * from dept d join employee e on d.dept_id = e.employee_id;
+```
+
+delete, insert 등 다른 query도 실행하는 과정에서 상황에 따라 Table에 양방향으로 반영됨
+
+### JPA
+
+Java의 객체는 Reference Variable 다른 객체의 해쉬값을 저장해 관계의 주인이 됨
+
+![img5](image/img5.png)
+
+Persistence Context 내에서 DB처럼 양방향으로 연결하려면 Persistence Context 에 관계에 대한 설정을 해주어야함
+- 즉, 객체를 Persistence Context 내에서 단방향으로 서로 연결해야 양방향으로 mapping 이 가능함
+- 단, DB 는 FK를 가진 쪽이 관계의 주인이 되지만, 객체는 서로 관계의 주인이 될 수 있음
+- @JoinColumn @ManyToOne @OneToMany @OneToOne @ManyToMany 등 Annotatio을 활용해 Assosiation Mapping
+
+#### @JoinColum
+현재 Entity의 Object Type Feild 를 Persistence Context에서 Join 할 때 사용함을 표시 
+
+```java
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+@ToString
+public class Employee {
+    @Id
+    @Column(name = "employee_id")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+    
+    @ManyToOne
+    @JoinColumn(name = "dept_id")
+    private Dept dept;
+}
+```
+
+#### @ManyToOne
+
+관계에서 Entity N개가 다른 Entity 1개를 참조함을 표시
+
+```java
+@Target({METHOD, FIELD}) 
+@Retention(RUNTIME)
+
+public @interface ManyToOne {
+
+    /** 
+     * (Optional) The entity class that is the target of 
+     * the association. 
+     *
+     * <p> Defaults to the type of the field or property 
+     * that stores the association. 
+     */
+    Class targetEntity() default void.class;
+
+    /**
+     * (Optional) The operations that must be cascaded to 
+     * the target of the association.
+     *
+     * <p> By default no operations are cascaded.
+     */
+    CascadeType[] cascade() default {};
+
+    /** 
+     * (Optional) Whether the association should be lazily 
+     * loaded or must be eagerly fetched. The EAGER
+     * strategy is a requirement on the persistence provider runtime that 
+     * the associated entity must be eagerly fetched. The LAZY 
+     * strategy is a hint to the persistence provider runtime.
+     */
+    FetchType fetch() default EAGER;
+
+    /** 
+     * (Optional) Whether the association is optional. If set 
+     * to false then a non-null relationship must always exist.
+     */
+    boolean optional() default true;
+}
+```
+
+```java
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+@ToString
+public class Employee {
+    @Id
+    @Column(name = "employee_id")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+
+    @ManyToOne
+    @JoinColumn(name = "dept_id")
+    private Dept dept;
+}
+```
+
+#### @OneToMany
+관계에서 Entity 1개 가 다른 Entity N개에게 참조됨을 표시 
+- DB에는 Feild 와 mapping 되는 Colunm이 없지만 Entity 객체에 mapping 해 값을 가져오기 위해 필요함
+```java
+/*
+ * Copyright (c) 2008, 2019 Oracle and/or its affiliates. All rights reserved.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0,
+ * or the Eclipse Distribution License v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+
+@Target({METHOD, FIELD}) 
+@Retention(RUNTIME)
+
+public @interface OneToMany {
+
+    /**
+     * (Optional) The entity class that is the target
+     * of the association. Optional only if the collection
+     * property is defined using Java generics.
+     * Must be specified otherwise.
+     *
+     * <p> Defaults to the parameterized type of
+     * the collection when defined using generics.
+     */
+    Class targetEntity() default void.class;
+
+    /** 
+     * (Optional) The operations that must be cascaded to 
+     * the target of the association.
+     * <p> Defaults to no operations being cascaded.
+     *
+     * <p> When the target collection is a {@link java.util.Map
+     * java.util.Map}, the <code>cascade</code> element applies to the
+     * map value.
+     */
+    CascadeType[] cascade() default {};
+
+    /** (Optional) Whether the association should be lazily loaded or
+     * must be eagerly fetched. The EAGER strategy is a requirement on
+     * the persistence provider runtime that the associated entities
+     * must be eagerly fetched.  The LAZY strategy is a hint to the
+     * persistence provider runtime.
+     */
+    FetchType fetch() default LAZY;
+
+    /** 
+     * The field that owns the relationship. Required unless 
+     * the relationship is unidirectional.
+     */
+    String mappedBy() default "";
+
+    /**
+     * (Optional) Whether to apply the remove operation to entities that have
+     * been removed from the relationship and to cascade the remove operation to
+     * those entities.
+     * @since 2.0
+     */
+    boolean orphanRemoval() default false;
+}
+
+
+```
+
+```java
+@Entity
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+@ToString
+public class Dept{
+
+    @Id
+    @Column(name = "dept_id")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+    
+    @Builder.Default
+    @OneToMany(mappedBy = "dept")
+    private List<Employee> emps = new ArrayList<>();
+}
+```
+
+#### 양방향 mapping
+
+객체의 양쪽에 @OneToMany와 @ManyToOne을 사용하여 양방향 연결이 가능함
+
+
+### Persistence Casecade
+
+Assosiation Mapping이 된 Entity를 사용하기 편하도록 Entity간 Persistence Cascade 를 제공
+- @ManyToOne, @OneToMany를 보면 다양한 Cascade Type Option이 있음
+- Cascade Type에 따라서 Persistence Context Status가 함께 반영됨
+
+```java
+public enum CascadeType { 
+    ALL, 
+    PERSIST, 
+    MERGE, 
+    REMOVE,
+    REFRESH,
+    DETACH
+}
+```
+
+```java
+@Target({METHOD, FIELD}) 
+@Retention(RUNTIME)
+public @interface ManyToOne {
+    /**
+     * (Optional) The operations that must be cascaded to 
+     * the target of the association.
+     *
+     * <p> By default no operations are cascaded.
+     */
+    CascadeType[] cascade() default {};
+}
+
+@Target({METHOD, FIELD})
+@Retention(RUNTIME)
+public @interface OneToMany {
+    /**
+     * (Optional) The operations that must be cascaded to 
+     * the target of the association.
+     * <p> Defaults to no operations being cascaded.
+     *
+     * <p> When the target collection is a {@link java.util.Map
+     * java.util.Map}, the <code>cascade</code> element applies to the
+     * map value.
+     */
+    CascadeType[] cascade() default {};
+}
+```
+
+### Fetch 전략
+
+FetchType 은 JPA는 하나의 Entity 를 조회할 때, 연관관계에 있는 객체들을 가져오는 시점을 정함
+- @ManyToOne FetchType
+```java
+public @interface ManyToOne {
+
+    /** 
+     * (Optional) Whether the association should be lazily 
+     * loaded or must be eagerly fetched. The EAGER
+     * strategy is a requirement on the persistence provider runtime that 
+     * the associated entity must be eagerly fetched. The LAZY 
+     * strategy is a hint to the persistence provider runtime.
+     */
+    FetchType fetch() default EAGER;
+    
+}
+
+```
+
+- @OneToMany FetchType
+
+```java
+public @interface OneToMany {
+    
+    /** (Optional) Whether the association should be lazily loaded or
+     * must be eagerly fetched. The EAGER strategy is a requirement on
+     * the persistence provider runtime that the associated entities
+     * must be eagerly fetched.  The LAZY strategy is a hint to the
+     * persistence provider runtime.
+     */
+    FetchType fetch() default LAZY;
+}
+
+```
+
+- FetchType의 종류
+```java
+public enum FetchType {
+
+    /** Defines that data can be lazily fetched. */
+    LAZY,
+
+    /** Defines that data must be eagerly fetched. */
+    EAGER
+}
+```
+
+| EAGER | LAZY |
+|-------|------|
+|       |      | 
 
 
 

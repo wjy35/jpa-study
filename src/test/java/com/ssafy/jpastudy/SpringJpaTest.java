@@ -37,7 +37,7 @@ public class SpringJpaTest {
 
     @Test
     @Transactional
-    void testInsert(){
+    void testPersist(){
         // given
         int boardId = 1;
         Board insertedBoard = BoardFactory.createByBoardId(boardId);
@@ -55,25 +55,25 @@ public class SpringJpaTest {
 
     @Test
     @Transactional
-    void testInsertFail(){
+    void testPersistFail(){
         // given
         int boardId = 1;
-        Board insertedBoard = BoardFactory.createByBoardId(boardId);
-        Board updatedBoard = BoardFactory.createByBoardIdAndSubject(boardId,"updated");
+        Board board = BoardFactory.createByBoardId(boardId);
+        Board usedBoard = BoardFactory.createByBoardIdAndSubject(boardId,"updated");
 
         EntityManager entityManager = entityManagerFactory.createEntityManager();
 
         // when
-        entityManager.persist(updatedBoard);
+        entityManager.persist(usedBoard);
 
         // then
         assertThrows(EntityExistsException.class,()->{
-            entityManager.persist(insertedBoard);
+            entityManager.persist(board);
         });
     }
 
     @Test
-    void testUpdate(){
+    void testMerge(){
         // given
         int boardId = 1;
         String updateSubject = "updated ssafy";
@@ -89,8 +89,13 @@ public class SpringJpaTest {
 
         entityManager.persist(insertedBoard);
         entityManager.merge(updatedBoard);
-        entityManager.flush();
-        entityManager.clear();
+
+        /*
+            select query 를 출력하려면 persistence context를 동기화 및 초기화
+            entityManager.flush();
+            entityManager.clear();
+         */
+
         entityTransaction.commit();
 
         // then
@@ -175,23 +180,7 @@ public class SpringJpaTest {
         });
     }
 
-    @Test
-    void testtest(){
-        int boardId = 1;
-        Board insertedBoard = BoardFactory.createByBoardId(boardId);
 
-        EntityManager entityManager = entityManagerFactory.createEntityManager();
-        EntityTransaction entityTransaction = entityManager.getTransaction();
 
-        // when
-        entityTransaction.begin();
-        entityManager.persist(insertedBoard);
-        entityTransaction.commit();
 
-        entityTransaction.begin();
-        entityManager.remove(insertedBoard);
-        entityManager.detach(insertedBoard);
-        entityTransaction.commit();
-
-    }
 }
